@@ -1,0 +1,11 @@
+{
+  "appId": "com.file.app",
+  "appName": "File Open",
+  "bundledWebRuntime": false,
+  "webDir": "dist",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}
