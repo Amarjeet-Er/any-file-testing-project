@@ -10,8 +10,8 @@ export class SharedService {
     private _snacker: MatSnackBar
   ) { }
 
-  base_url = new BehaviorSubject<string>('https://granlighting.co.in/api/');
-  base_img_url = new BehaviorSubject<string>('https://granlighting.co.in/')
+  base_url = new BehaviorSubject<string>('https://pankajmalik.in/api/');
+  base_img_url = new BehaviorSubject<string>('https://pankajmalik.in/')
   shared_details = new BehaviorSubject<object>({})
 
   // for messages toast notification

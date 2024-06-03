@@ -44,7 +44,7 @@ export class CrudService {
     return this._http.post(`${this.base_url}registrationListApi`, data)
   }
   get_registration_list() {
-    return this._http.get(`${this.base_url}registrationListApi`);
+    return this._http.get(`https://pankajmalik.in/api/registrationListApi`);
   }
   put_reg_form(data: any) {
     return this._http.post(`https://granlighting.co.in/api/registrationListApi`, data)

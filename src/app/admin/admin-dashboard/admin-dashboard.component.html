@@ -1,10 +1,14 @@
-<div class="textBox">
-    <img src="../../../assets/images/logo.jpeg" alt="logo" title="logo">
-</div>
-<!-- <div class="wrapper">
-    <div class="loginImage">
-        <div class="image">
-            <img [src]="images[currentImageIndex]" alt="image">
-        </div>
+<div id="banner">
+    <div id="slider">
+        <swiper [spaceBetween]="30" [centeredSlides]="true" [autoplay]="{
+                delay: 2000,
+                disableOnInteraction: false
+            }" [pagination]="{
+                clickable: true
+            }" [grabCursor]="true" [navigation]="true" class="mySwiper">
+            <ng-template swiperSlide *ngFor="let slider of slider_data">
+                <img class="slider_img" src="{{slider?.img_url}}" width="100%" height="100%">
+            </ng-template>
+        </swiper>
     </div>
-</div> -->
+</div>

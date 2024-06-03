@@ -21,6 +21,7 @@ import { MatDialogModule } from '@angular/material/dialog';
 import { MatStepperModule } from '@angular/material/stepper';
 import { MatSliderModule } from '@angular/material/slider';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { SwiperModule } from 'swiper/angular';
 
 import { AdminRoutingModule } from './admin-routing.module';
 import { AdminHomeComponent } from './admin-home/admin-home.component';
@@ -62,7 +63,8 @@ import { AdminCandidateComponent } from './admin-candidate/admin-candidate.compo
     MatDialogModule,
     MatStepperModule,
     MatSliderModule,
-    MatSlideToggleModule
+    MatSlideToggleModule,
+    SwiperModule
   ]
 })
 export class AdminModule { }

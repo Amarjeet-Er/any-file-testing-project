@@ -1,161 +1,161 @@
 import { Component, OnInit } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
-import { Router } from '@angular/router';
+import { Platform } from '@ionic/angular';
+import { Directory, Filesystem } from '@capacitor/filesystem';
+import write_blob from 'capacitor-blob-writer';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { FileOpener } from '@awesome-cordova-plugins/file-opener';
+import * as pdfMake from 'pdfmake/build/pdfmake';
 import { CrudService } from 'src/app/service/crud.service';
-import { SharedService } from 'src/app/service/shared.service';
-import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
-import * as FileSaver from 'file-saver';
-import { Filesystem } from '@capacitor/filesystem';
+const pdfMakeX = require('pdfmake/build/pdfmake');
+const pdfFontsX = require('pdfmake/build/vfs_fonts');
+pdfMakeX.vfs = pdfFontsX.pdfMake.vfs;
 
 @Component({
   selector: 'app-admin-registration-list',
   templateUrl: './admin-registration-list.component.html',
   styleUrls: ['./admin-registration-list.component.css']
 })
-export class AdminRegistrationListComponent {
-  headerBox: boolean = true;
-  siteSearch: boolean = false
-  panelOpenState = false;
+export class AdminRegistrationListComponent implements OnInit {
   reg_data: any;
-  base_url: any
-  reg_filter_data: any;
-  deletevalue: any;
-
+  EXCEL_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=UTF-8';
+  documentDefinition: any;
   constructor(
-    private _dialog: MatDialog,
-    private _crud: CrudService,
-    private _shared: SharedService,
-    private _router: Router
-  ) {
+    private _Platform: Platform,
+    private _crud: CrudService
+  ) { }
 
-  }
-  ngOnInit(): void {
-    this._shared.base_img_url.subscribe(
-      (res: any) => {
-        this.base_url = res
-      }
-    )
+  async ngOnInit() {
     this._crud.get_registration_list().subscribe(
       (res: any) => {
         console.log(res);
-        this.reg_data = res
-        this.reg_filter_data = res
+        this.reg_data = res;
       }
     )
-  }
-  onHeaderBox() {
-    this.headerBox = !this.headerBox;
-    this.siteSearch = !this.siteSearch;
-  }
-  onSiteSearch() {
-    this.headerBox = !this.headerBox;
-    this.siteSearch = !this.siteSearch;
-    this._crud.get_registration_list().subscribe(
-      (res: any) => {
-        console.log(res);
-        this.reg_data = res
+
+    const granted = await LocalNotifications.requestPermissions();
+    if (granted.display !== 'granted') {
+      alert('Notifications permission not granted');
+    }
+    LocalNotifications.addListener('localNotificationActionPerformed', (notification) => {
+      const fileName = notification.notification.extra?.fileName;
+      const fileType = notification.notification.extra?.fileType;
+      if (fileName && fileType) {
+        this.openFile(fileName, fileType);
       }
-    )
-  }
-  onRegEdit(data: any) {
-    console.log(data);
-    this._shared.shared_details.next(data)
-    this._router.navigate(['/admin/registrationupdate'])
+    });
   }
 
-  // for generate excel file here 
-  excel() {
-    let serialNo = 1;
-    const data = this.reg_data.map((reg: any) => ({
-      'Serial No.': serialNo++,
-      'Name': reg.name,
-      'Mobile': reg.Mobile,
-      'Email': reg.Email,
-      'Gender': reg.Gender,
-      'Jati Name': reg.Jati_name,
-      'Category Name': reg.category_name,
-      'Party Name': reg.Party_name,
-      'Car No': reg.car_no,
-      'Weapon No': reg.Weapon_no,
-      'City': reg.City,
-      'Block': reg.Block,
-      'Janpath Name': reg.Janpath_name,
-      'Vidhansabha Name': reg.Vidhansabha_name,
-      'Loksabha Name': reg.Loksabha_name,
-      'Address': reg.Address,
-      'Description': reg.Description,
-    }));
+  async DownloadPDF() {
     try {
-      this.downloadExcel(data)
-      this._shared.tostSuccessBottom("Excel download successfully")
-    }
-    catch {
-      this._shared.tostErrorBottom("Excel not download")
-    }
-  }
+      this.documentDefinition = this.generateDocumentDefinition();
+      const now = new Date();
+      const timestamp = `${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+      const filename = `PDF_${timestamp}.pdf`;
 
-  downloadExcel(data: any[]): void {
-    try {
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Report');
-      ws['!cols'] = [{ width: 10 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 }, { width: 20 }];
-      ws['!rows'] = [{ hpt: 20 }, { hpt: 20 }, { hpt: 20 }];
-      ws['A1'].s = { font: { bold: true }, alignment: { horizontal: 'center' }, fill: { fgColor: { rgb: 'FFFF00' } } };
+      if (this._Platform.is('cordova') || this._Platform.is('mobile') || this._Platform.is('android')) {
+        pdfMake.createPdf(this.documentDefinition).getBuffer(async (buffer: ArrayBuffer) => {
+          await write_blob({
+            path: filename,
+            directory: Directory.Documents,
+            blob: new Blob([buffer])
+          });
 
-      const excelBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
-      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      saveAs(blob, 'Report.xlsx');
+          this.showNotification('PDF Downloaded', `Your PDF file ${filename} has been saved successfully.`, filename, 'application/pdf');
+        });
+      } else {
+        pdfMake.createPdf(this.documentDefinition).download(filename);
+        this.showNotification('PDF Downloaded', `Your PDF file ${filename} has been saved successfully.`, filename, 'application/pdf');
+      }
     } catch (error) {
-      this._shared.tostErrorBottom("Data not found");
+      alert("Error generating PDF");
     }
   }
 
+  generateDocumentDefinition() {
+    const content = [];
+    content.push({ text: 'Registration Data', style: 'header' });
+    content.push('\n');
 
+    const tableHeaders = [
+      { text: 'S.N.', style: 'tableHeader' },
+      { text: 'Name', style: 'tableHeader' },
+      { text: 'Mobile', style: 'tableHeader' },
+      { text: 'Gender', style: 'tableHeader' },
+    ];
 
+    const tableBody = this.reg_data.map((reg: any, index: number) => [
+      { text: (index + 1).toString(), style: 'tableBody' },
+      { text: reg.name, style: 'tableBody' },
+      { text: reg.Mobile, style: 'tableBody' },
+      { text: reg.Gender, style: 'tableBody' },
+    ]);
 
-  onDelete(data: any): void { }
+    const table = {
+      headerRows: 1,
+      widths: ['auto', '*', '*', '*'],
+      body: [
+        tableHeaders,
+        ...tableBody
+      ],
+    };
 
+    content.push({
+      table: table,
+      layout: 'lightHorizontalLines'
+    });
 
-  onListSearch(filter: string) {
-    this.reg_data = this.reg_filter_data.filter((data: any) => {
-      if (data.fullname.toString().toLowerCase().indexOf(filter.toLowerCase()) !== -1) {
-        return true;
-      }
+    return {
+      content: content,
+      styles: {
+        header: {
+          fontSize: 20,
+          bold: true
+        },
+        tableHeader: {
+          bold: true,
+          fontSize: 15,
+          color: 'red'
+        },
+        tableBody: {
+          fontSize: 15
+        }
+      },
+      pageSize: 'A4',
+      pageMargins: [10, 10, 10, 15],
+    };
+  }
 
-      if (data.Mobile.toString().toLowerCase().indexOf(filter.toLowerCase()) !== -1) {
-        return true;
+  async showNotification(title: string, body: string, fileName: string, fileType: string) {
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          title,
+          body,
+          id: 1,
+          schedule: { at: new Date(Date.now() + 100) },
+          sound: 'default',
+          attachments: [],
+          extra: { fileName, fileType }
+        }
+      ]
+    });
+  }
+
+  async openFile(fileName: string, fileType: string) {
+    try {
+      const path = await Filesystem.getUri({
+        directory: Directory.Documents,
+        path: fileName
+      });
+      if (path && path.uri) {
+        FileOpener.open(path.uri, fileType)
+          .then(() => console.log('File is opened'))
+          .catch(e => console.log('Error opening file' + JSON.stringify(e)));
+      } else {
+        alert('File path is null or undefined.');
       }
-      if (data.Alternatemobile.toString().toLowerCase().indexOf(filter.toLowerCase()) !== -1) {
-        return true;
-      }
-      if (data.Email.toString().toLowerCase().indexOf(filter.toLowerCase()) !== -1) {
-        return true;
-      }
-      if (data.Designation_name.toString().toLowerCase().indexOf(filter.toLowerCase()) !== -1) {
-        return true;
-      }
-      if (data.Department_name.toString().toLowerCase().indexOf(filter.toLowerCase()) !== -1) {
-        return true;
-      }
-      if (data.SubDept_name.toString().toLowerCase().indexOf(filter.toLowerCase()) !== -1) {
-        return true;
-      }
-      if (data.Statename.toString().toLowerCase().indexOf(filter.toLowerCase()) !== -1) {
-        return true;
-      }
-      if (data.City_name.toString().toLowerCase().indexOf(filter.toLowerCase()) !== -1) {
-        return true;
-      }
-      if (data.AadharNo.toString().toLowerCase().indexOf(filter.toLowerCase()) !== -1) {
-        return true;
-      }
-      if (data.PanNo.toString().toLowerCase().indexOf(filter.toLowerCase()) !== -1) {
-        return true;
-      }
-      return false;
+    } catch (error) {
+      alert('Error retrieving file path:' + JSON.stringify(error));
     }
-    );
   }
 }
